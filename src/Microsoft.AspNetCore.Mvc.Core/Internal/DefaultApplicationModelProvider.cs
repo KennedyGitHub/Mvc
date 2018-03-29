@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.ActionConstraints;
 using Microsoft.AspNetCore.Mvc.ApiExplorer;
 using Microsoft.AspNetCore.Mvc.ApplicationModels;
@@ -19,14 +18,14 @@ namespace Microsoft.AspNetCore.Mvc.Internal
 {
     public class DefaultApplicationModelProvider : IApplicationModelProvider
     {
-        private readonly ICollection<IFilterMetadata> _globalFilters;
+        private readonly MvcOptions _mvcOptions;
         private readonly IModelMetadataProvider _modelMetadataProvider;
 
         public DefaultApplicationModelProvider(
             IOptions<MvcOptions> mvcOptionsAccessor,
             IModelMetadataProvider modelMetadataProvider)
         {
-            _globalFilters = mvcOptionsAccessor.Value.Filters;
+            _mvcOptions = mvcOptionsAccessor.Value;
             _modelMetadataProvider = modelMetadataProvider;
         }
 
@@ -41,7 +40,7 @@ namespace Microsoft.AspNetCore.Mvc.Internal
                 throw new ArgumentNullException(nameof(context));
             }
 
-            foreach (var filter in _globalFilters)
+            foreach (var filter in _mvcOptions.Filters)
             {
                 context.Result.Filters.Add(filter);
             }
@@ -218,19 +217,16 @@ namespace Microsoft.AspNetCore.Mvc.Internal
             }
 
             var attributes = propertyInfo.GetCustomAttributes(inherit: true);
-            var propertyModel = new PropertyModel(propertyInfo, attributes)
-            {
-                PropertyName = propertyInfo.Name
-            };
+
 
             var modelMetadata = _modelMetadataProvider.GetMetadataForProperty(propertyInfo.DeclaringType, propertyInfo.Name);
             var bindingInfo = BindingInfo.GetBindingInfo(attributes, modelMetadata);
-            if (bindingInfo == null && IsFormFileType(propertyInfo.PropertyType))
-            {
-                bindingInfo = new BindingInfo { BindingSource = BindingSource.FormFile, };
-            }
 
-            propertyModel.BindingInfo = bindingInfo;
+            var propertyModel = new PropertyModel(propertyInfo, attributes)
+            {
+                PropertyName = propertyInfo.Name,
+                BindingInfo = bindingInfo,
+            };
 
             return propertyModel;
         }
@@ -440,21 +436,15 @@ namespace Microsoft.AspNetCore.Mvc.Internal
             };
 
             BindingInfo bindingInfo;
-            if (_modelMetadataProvider is ModelMetadataProvider modelMetadataProviderBase)
+            if (_mvcOptions.AllowValidatingTopLevelNodes && _modelMetadataProvider is ModelMetadataProvider modelMetadataProviderBase)
             {
                 var modelMetadata = modelMetadataProviderBase.GetMetadataForParameter(parameterInfo);
                 bindingInfo = BindingInfo.GetBindingInfo(attributes, modelMetadata);
             }
             else
             {
-                // For backward compatibility, if there's a custom model metadata provider that
-                // only implements the older IModelMetadataProvider interface, construct BindingInfo using attributes.
+                // GetMetadataForParameter should only be used if the user has opted in to two the 2.1 behavior.
                 bindingInfo = BindingInfo.GetBindingInfo(attributes);
-            }
-
-            if (bindingInfo == null && IsFormFileType(parameterInfo.ParameterType))
-            {
-                bindingInfo = new BindingInfo { BindingSource = BindingSource.FormFile, };
             }
 
             parameterModel.BindingInfo = bindingInfo;
@@ -675,13 +665,6 @@ namespace Microsoft.AspNetCore.Mvc.Internal
             {
                 list.Add(item);
             }
-        }
-
-        private static bool IsFormFileType(Type parameterType)
-        {
-            return parameterType == typeof(IFormFile) ||
-                parameterType == typeof(IFormFileCollection) ||
-                typeof(IEnumerable<IFormFile>).IsAssignableFrom(parameterType);
         }
     }
 }

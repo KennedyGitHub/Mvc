@@ -18,17 +18,6 @@ namespace Microsoft.AspNetCore.Mvc.Internal
 {
     public class ApiBehaviorApplicationModelProviderTest
     {
-        public ApiBehaviorApplicationModelProviderTest()
-        {
-            MvcOptions = new MvcOptions();
-            new MvcCoreMvcOptionsSetup(new TestHttpRequestStreamReaderFactory()).Configure(MvcOptions);
-            ModelMetadataProvider = TestModelMetadataProvider.CreateProvider(MvcOptions.ModelMetadataDetailsProviders);
-        }
-
-        public MvcOptions MvcOptions { get; private set; }
-
-        public IModelMetadataProvider ModelMetadataProvider { get; private set; }
-
         [Fact]
         public void OnProvidersExecuting_AddsModelStateInvalidFilter_IfTypeIsAnnotatedWithAttribute()
         {
@@ -534,14 +523,16 @@ namespace Microsoft.AspNetCore.Mvc.Internal
             var optionsAccessor = Options.Create(options);
 
             var loggerFactory = NullLoggerFactory.Instance;
-
-            return new ApiBehaviorApplicationModelProvider(optionsAccessor, ModelMetadataProvider, loggerFactory);
+            var modelMetadataProvider = TestModelMetadataProvider.CreateDefaultProvider();
+            return new ApiBehaviorApplicationModelProvider(optionsAccessor, modelMetadataProvider, loggerFactory);
         }
 
         private ApplicationModelProviderContext GetContext(Type type)
         {
             var context = new ApplicationModelProviderContext(new[] { type.GetTypeInfo() });
-            var provider = new DefaultApplicationModelProvider(Options.Create(MvcOptions), ModelMetadataProvider);
+            var mvcOptions = Options.Create(new MvcOptions { AllowValidatingTopLevelNodes = true });
+            var modelMetadataProvider = TestModelMetadataProvider.CreateDefaultProvider();
+            var provider = new DefaultApplicationModelProvider(mvcOptions, modelMetadataProvider);
             provider.OnProvidersExecuting(context);
 
             return context;

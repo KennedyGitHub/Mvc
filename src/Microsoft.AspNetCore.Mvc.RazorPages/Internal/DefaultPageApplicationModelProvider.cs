@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.Razor;
 using Microsoft.AspNetCore.Mvc.RazorPages.Infrastructure;
 using Microsoft.Extensions.Internal;
+using Microsoft.Extensions.Options;
 
 namespace Microsoft.AspNetCore.Mvc.RazorPages.Internal
 {
@@ -18,10 +19,14 @@ namespace Microsoft.AspNetCore.Mvc.RazorPages.Internal
         private readonly PageHandlerPageFilter _pageHandlerPageFilter = new PageHandlerPageFilter();
         private readonly PageHandlerResultFilter _pageHandlerResultFilter = new PageHandlerResultFilter();
         private readonly IModelMetadataProvider _modelMetadataProvider;
+        private readonly MvcOptions _options;
 
-        public DefaultPageApplicationModelProvider(IModelMetadataProvider modelMetadataProvider)
+        public DefaultPageApplicationModelProvider(
+            IModelMetadataProvider modelMetadataProvider,
+            IOptions<MvcOptions> options)
         {
             _modelMetadataProvider = modelMetadataProvider;
+            _options = options.Value;
         }
 
         /// <inheritdoc />
@@ -226,15 +231,13 @@ namespace Microsoft.AspNetCore.Mvc.RazorPages.Internal
             var attributes = parameter.GetCustomAttributes(inherit: true);
 
             BindingInfo bindingInfo;
-            if (_modelMetadataProvider is ModelMetadataProvider modelMetadataProviderBase)
+            if (_options.AllowValidatingTopLevelNodes && _modelMetadataProvider is ModelMetadataProvider modelMetadataProviderBase)
             {
                 var modelMetadata = modelMetadataProviderBase.GetMetadataForParameter(parameter);
                 bindingInfo = BindingInfo.GetBindingInfo(attributes, modelMetadata);
             }
             else
             {
-                // For backward compatibility, if there's a custom model metadata provider that
-                // only implements the older IModelMetadataProvider interface, construct BindingInfo using attributes.
                 bindingInfo = BindingInfo.GetBindingInfo(attributes);
             }
 
