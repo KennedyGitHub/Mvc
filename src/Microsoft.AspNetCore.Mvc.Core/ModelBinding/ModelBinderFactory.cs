@@ -233,14 +233,9 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding
             {
                 _factory = factory;
                 Metadata = factoryContext.Metadata;
-                BindingInfo = new BindingInfo
-                {
-                    BinderModelName = factoryContext.BindingInfo?.BinderModelName ?? Metadata.BinderModelName,
-                    BinderType = factoryContext.BindingInfo?.BinderType ?? Metadata.BinderType,
-                    BindingSource = factoryContext.BindingInfo?.BindingSource ?? Metadata.BindingSource,
-                    PropertyFilterProvider =
-                        factoryContext.BindingInfo?.PropertyFilterProvider ?? Metadata.PropertyFilterProvider,
-                };
+                var bindingInfo = factoryContext.BindingInfo ?? new BindingInfo();
+                bindingInfo.ApplyBindingInfo(Metadata);
+                BindingInfo = bindingInfo;
 
                 MetadataProvider = _factory._metadataProvider;
                 Visited = new Dictionary<Key, IModelBinder>();

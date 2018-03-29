@@ -14,7 +14,7 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding
         public void GetBindingInfo_WithAttributes_ConstructsBindingInfo()
         {
             // Arrange
-            var attributes = new object[] 
+            var attributes = new object[]
             {
                 new FromQueryAttribute { Name = "Test" },
             };
@@ -29,10 +29,46 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding
         }
 
         [Fact]
+        public void GetBindingInfo_ReadsPropertyPredicateProvider()
+        {
+            // Arrange
+            var bindAttribute = new BindAttribute(include: "SomeProperty");
+            var attributes = new object[]
+            {
+                bindAttribute,
+            };
+
+            // Act
+            var bindingInfo = BindingInfo.GetBindingInfo(attributes);
+
+            // Assert
+            Assert.NotNull(bindingInfo);
+            Assert.Same(bindAttribute, bindingInfo.PropertyFilterProvider);
+        }
+
+        [Fact]
+        public void GetBindingInfo_ReadsRequestPredicateProvider()
+        {
+            // Arrange
+            var attributes = new object[]
+            {
+                new BindPropertyAttribute { Name = "PropertyPrefix", SupportsGet = true, },
+            };
+
+            // Act
+            var bindingInfo = BindingInfo.GetBindingInfo(attributes);
+
+            // Assert
+            Assert.NotNull(bindingInfo);
+            Assert.Same("PropertyPrefix", bindingInfo.BinderModelName);
+            Assert.NotNull(bindingInfo.RequestPredicate);
+        }
+
+        [Fact]
         public void GetBindingInfo_ReturnsNull_IfNoBindingAttributesArePresent()
         {
             // Arrange
-            var attributes = new object[] { new  ControllerAttribute(), new BindNeverAttribute(), };
+            var attributes = new object[] { new ControllerAttribute(), new BindNeverAttribute(), };
 
             // Act
             var bindingInfo = BindingInfo.GetBindingInfo(attributes);
@@ -71,10 +107,10 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding
         }
 
         [Fact]
-        public void GetBindingInfo_WithAttributesAndModelMetadata_UsesValuesFromModelMetadata_IfNoBindingAttributesArePresent()
+        public void GetBindingInfo_WithAttributesAndModelMetadata_UsesBinderNameFromModelMetadata_WhenNotFoundViaAttributes()
         {
             // Arrange
-            var attributes = new object[] { new ControllerAttribute(), new BindNeverAttribute(), };
+            var attributes = new object[] { new ModelBinderAttribute(typeof(object)), new ControllerAttribute(), new BindNeverAttribute(), };
             var modelAttributes = new ModelAttributes(Enumerable.Empty<object>(), null, null);
             var metadataDetails = new DefaultMetadataDetails(ModelMetadataIdentity.ForType(typeof(object)), modelAttributes)
             {
@@ -92,9 +128,79 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding
 
             // Assert
             Assert.NotNull(bindingInfo);
-            Assert.Same(typeof(string), bindingInfo.BinderType);
+            Assert.Same(typeof(object), bindingInfo.BinderType);
             Assert.Same("Different", bindingInfo.BinderModelName);
-            Assert.Same(BindingSource.Special, bindingInfo.BindingSource);
+            Assert.Same(BindingSource.Custom, bindingInfo.BindingSource);
+        }
+
+        [Fact]
+        public void GetBindingInfo_WithAttributesAndModelMetadata_UsesModelBinderFromModelMetadata_WhenNotFoundViaAttributes()
+        {
+            // Arrange
+            var attributes = new object[] { new ControllerAttribute(), new BindNeverAttribute(), };
+            var modelAttributes = new ModelAttributes(Enumerable.Empty<object>(), null, null);
+            var metadataDetails = new DefaultMetadataDetails(ModelMetadataIdentity.ForType(typeof(object)), modelAttributes)
+            {
+                BindingMetadata = new BindingMetadata
+                {
+                    BinderType = typeof(string),
+                },
+            };
+            var modelMetadata = new DefaultModelMetadata(new EmptyModelMetadataProvider(), Mock.Of<ICompositeMetadataDetailsProvider>(), metadataDetails);
+
+            // Act
+            var bindingInfo = BindingInfo.GetBindingInfo(attributes, modelMetadata);
+
+            // Assert
+            Assert.NotNull(bindingInfo);
+            Assert.Same(typeof(string), bindingInfo.BinderType);
+        }
+
+        [Fact]
+        public void GetBindingInfo_WithAttributesAndModelMetadata_UsesBinderSourceFromModelMetadata_WhenNotFoundViaAttributes()
+        {
+            // Arrange
+            var attributes = new object[] { new BindPropertyAttribute(), new ControllerAttribute(), new BindNeverAttribute(), };
+            var modelAttributes = new ModelAttributes(Enumerable.Empty<object>(), null, null);
+            var metadataDetails = new DefaultMetadataDetails(ModelMetadataIdentity.ForType(typeof(object)), modelAttributes)
+            {
+                BindingMetadata = new BindingMetadata
+                {
+                    BindingSource = BindingSource.Services,
+                },
+            };
+            var modelMetadata = new DefaultModelMetadata(new EmptyModelMetadataProvider(), Mock.Of<ICompositeMetadataDetailsProvider>(), metadataDetails);
+
+            // Act
+            var bindingInfo = BindingInfo.GetBindingInfo(attributes, modelMetadata);
+
+            // Assert
+            Assert.NotNull(bindingInfo);
+            Assert.Same(BindingSource.Services, bindingInfo.BindingSource);
+        }
+
+        [Fact]
+        public void GetBindingInfo_WithAttributesAndModelMetadata_UsesPropertyPredicateProviderFromModelMetadata_WhenNotFoundViaAttributes()
+        {
+            // Arrange
+            var attributes = new object[] { new ModelBinderAttribute(typeof(object)), new ControllerAttribute(), new BindNeverAttribute(), };
+            var modelAttributes = new ModelAttributes(Enumerable.Empty<object>(), null, null);
+            var propertyFilterProvider = Mock.Of<IPropertyFilterProvider>();
+            var metadataDetails = new DefaultMetadataDetails(ModelMetadataIdentity.ForType(typeof(object)), modelAttributes)
+            {
+                BindingMetadata = new BindingMetadata
+                {
+                    PropertyFilterProvider = propertyFilterProvider,
+                },
+            };
+            var modelMetadata = new DefaultModelMetadata(new EmptyModelMetadataProvider(), Mock.Of<ICompositeMetadataDetailsProvider>(), metadataDetails);
+
+            // Act
+            var bindingInfo = BindingInfo.GetBindingInfo(attributes, modelMetadata);
+
+            // Assert
+            Assert.NotNull(bindingInfo);
+            Assert.Same(propertyFilterProvider, bindingInfo.PropertyFilterProvider);
         }
     }
 }
