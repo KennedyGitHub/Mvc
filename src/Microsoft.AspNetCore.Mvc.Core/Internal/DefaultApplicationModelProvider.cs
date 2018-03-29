@@ -430,10 +430,6 @@ namespace Microsoft.AspNetCore.Mvc.Internal
             }
 
             var attributes = parameterInfo.GetCustomAttributes(inherit: true);
-            var parameterModel = new ParameterModel(parameterInfo, attributes)
-            {
-                ParameterName = parameterInfo.Name
-            };
 
             BindingInfo bindingInfo;
             if (_mvcOptions.AllowValidatingTopLevelNodes && _modelMetadataProvider is ModelMetadataProvider modelMetadataProviderBase)
@@ -447,7 +443,11 @@ namespace Microsoft.AspNetCore.Mvc.Internal
                 bindingInfo = BindingInfo.GetBindingInfo(attributes);
             }
 
-            parameterModel.BindingInfo = bindingInfo;
+            var parameterModel = new ParameterModel(parameterInfo, attributes)
+            {
+                ParameterName = parameterInfo.Name,
+                BindingInfo = bindingInfo,
+            };
 
             return parameterModel;
         }
