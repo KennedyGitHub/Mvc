@@ -65,10 +65,6 @@ namespace Microsoft.AspNetCore.Mvc.ModelBinding
 
         /// <summary>
         /// Constructs a new instance of <see cref="BindingInfo"/> from the given <paramref name="attributes"/>.
-        /// <para>
-        /// <see cref="GetBindingInfo(IEnumerable{object})"/> does not account for binding information configured using
-        /// <see cref="ModelMetadata"/>.
-        /// </para>
         /// </summary>
         /// <param name="attributes">A collection of attributes which are used to construct <see cref="BindingInfo"/>
         /// </param>
